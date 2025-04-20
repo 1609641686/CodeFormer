@@ -48,7 +48,7 @@ def get_hash():
         sha = get_git_hash()[:7]
     elif os.path.exists(version_file):
         try:
-            from version import __version__
+            from basicsr.version import __version__
             sha = __version__.split('+')[-1]
         except ImportError:
             raise ImportError('Unable to get git version')
@@ -66,8 +66,11 @@ __gitsha__ = '{}'
 version_info = ({})
 """
     sha = get_hash()
-    with open('./basicsr/VERSION', 'r') as f:
-        SHORT_VERSION = f.read().strip()
+    try:
+        with open('./basicsr/VERSION', 'r') as f:
+            SHORT_VERSION = f.read().strip()
+    except FileNotFoundError:
+        SHORT_VERSION = '0.0.0'  # Fallback version if VERSION file is missing
     VERSION_INFO = ', '.join([x if x.isdigit() else f'"{x}"' for x in SHORT_VERSION.split('.')])
 
     version_file_str = content.format(time.asctime(), SHORT_VERSION, sha, VERSION_INFO)
@@ -76,9 +79,13 @@ version_info = ({})
 
 
 def get_version():
-    with open(version_file, 'r') as f:
-        exec(compile(f.read(), version_file, 'exec'))
-    return locals()['__version__']
+    try:
+        with open(version_file, 'r') as f:
+            version_globals = {}
+            exec(compile(f.read(), version_file, 'exec'), version_globals)
+        return version_globals['__version__']
+    except (FileNotFoundError, KeyError):
+        return '0.0.0'  # Fallback version if version.py is missing or invalid
 
 
 def make_cuda_ext(name, module, sources, sources_cuda=None):
@@ -109,8 +116,11 @@ def make_cuda_ext(name, module, sources, sources_cuda=None):
 
 
 def get_requirements(filename='requirements.txt'):
-    with open(os.path.join('.', filename), 'r') as f:
-        requires = [line.replace('\n', '') for line in f.readlines()]
+    try:
+        with open(os.path.join('.', filename), 'r') as f:
+            requires = [line.replace('\n', '') for line in f.readlines()]
+    except FileNotFoundError:
+        requires = []
     return requires
 
 
